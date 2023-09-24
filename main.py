@@ -12,48 +12,50 @@ __copyright__ = 'C4A Research Institute, Inc.'
 
 import argparse
 from typing import Dict, Any, List
-import sys
+import yaml
 import os
 import json
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
-
 from dialbb.main import DialogueProcessor
-from rinna_tester import RinnaTester
+from chatgpt_tester_ja import ChatGPTTesterJa
 
+DEFAULT_MAX_TURNS = 15
 USER_ID = "user1"
 
 if __name__ == '__main__':
 
     # read arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("config", help="dialbb app config yaml file")
-    parser.add_argument("situations", help="situation JSON file")  # test input file
-    parser.add_argument("--model", help="model", required=False)  # output file (same format with test file)
+    parser.add_argument("--app_config", help="dialbb app config yaml file", required=True)
+    parser.add_argument("--test_config", help="test_config", required=False)  # config
     parser.add_argument("--output", help="output file", required=False)  # output file (same format with test file)
     args = parser.parse_args()
 
-    with open(args.situations, encoding='utf-8') as fp:
-        situations = json.load(fp)
+    app_config_file: str = args.app_config
+    dialogue_processor = DialogueProcessor(app_config_file)
 
-    config_file: str = args.config
-    dialogue_processor = DialogueProcessor(config_file)
+    test_config_file: str = args.test_config
+    test_config_dir: str = os.path.dirname(test_config_file)
+    with open(test_config_file, encoding='utf-8') as fp:
+        test_config: Dict[str, Any] = yaml.safe_load(fp)
 
-    model_name: str = args.model
-    if not model_name:
-        model_name = "rinna-gpt-2"
+    situations_file = os.path.join(test_config_dir, test_config['situations_file'])
+    with open(situations_file, encoding='utf-8') as fp:
+        situations: List[str] = json.load(fp)
 
-    if model_name == "rinna-gpt-2":
-        dialogue_tester = RinnaTester()
-    else:
-        print("unknown model:" + model_name)
-        sys.exit(1)
+    user_simulator = ChatGPTTesterJa(test_config, test_config_dir)
 
-    log_lines: List[str] = []
-    session_id: str = ""
+    log_lines = []
+
+    max_turns = test_config.get('max_turns', DEFAULT_MAX_TURNS)
 
     # reads each user utterance from test input file and processes it
     for situation in situations:
+
+        user_simulator.initialize(situation)
+        num_turns = 0
+
+        # first turn
         log_lines.append("----init")
         request = {"user_id": USER_ID}
         print("request: " + str(request))
@@ -62,8 +64,10 @@ if __name__ == '__main__':
         print("SYS> " + result['system_utterance'])
         log_lines.append("System: " + result['system_utterance'])
         session_id = result['session_id']
-        user_utterance = dialogue_tester.initialize_dialogue(situation, result['system_utterance'])
+        user_utterance = user_simulator.get_next_user_utterance(result['system_utterance'])
+
         while True:
+            num_turns += 1
             print("USR> " + user_utterance)
             log_lines.append("User: " + user_utterance)
             request = {"user_id": USER_ID, "session_id": session_id,
@@ -73,13 +77,19 @@ if __name__ == '__main__':
             print("response: " + str(result))
             print("SYS> " + result['system_utterance'])
             log_lines.append("System: " + result['system_utterance'])
-            if result['final']:
+            if result['final'] or num_turns >= max_turns:
                 break
-            user_utterance = dialogue_tester.proceed_dialogue(result['system_utterance'])
+
+            # next utterance
+            user_utterance = user_simulator.get_next_user_utterance(result['system_utterance'])
 
     if args.output:
         with open(args.output, mode='w', encoding='utf-8') as fp:
             for log_line in log_lines:
                 print(log_line, file=fp)
+
+    for log_line in log_lines:
+        print(log_line)
+
 
 
