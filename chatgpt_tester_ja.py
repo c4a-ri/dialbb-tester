@@ -2,6 +2,7 @@ import os, sys
 import openai
 from typing import Dict, Any
 
+
 GENERAL_SITUATION = "アオイとAIが対話をしています。"
 REQUEST_GENERATION = "この次に続くアオイの短い発話を生成してください。"
 DEFAULT_GPT_MODEL: str = "gpt-3.5-turbo"
@@ -27,10 +28,18 @@ class ChatGPTTesterJa():
 
         prompt = self._context + REQUEST_GENERATION
 
-        response = openai.ChatCompletion.create(
-            model=self._gpt_model,
-            messages=[{"role": "user", "content": prompt}]
-        )
+
+        while True:
+            try:
+                response = openai.ChatCompletion.create(
+                    model=self._gpt_model,
+                    messages=[{"role": "user", "content": prompt}],
+                    request_timeout=60
+                )
+            except openai.error.Timeout:
+                continue
+            finally:
+                break
 
         user_utterance = response.choices[0]['message']['content']
         user_utterance = user_utterance.replace("アオイ", "").replace("「", "").replace("」", "")

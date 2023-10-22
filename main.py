@@ -45,11 +45,17 @@ if __name__ == '__main__':
 
     user_simulator = ChatGPTTesterJa(test_config, test_config_dir)
 
-    log_lines = []
+    log_lines: List[str] = []
 
     max_turns = test_config.get('max_turns', DEFAULT_MAX_TURNS)
 
     # reads each user utterance from test input file and processes it
+
+    if args.output:
+        out_fp = open(args.output, mode='w', encoding='utf-8')
+    else:
+        out_fp = None
+
     for situation in situations:
 
         user_simulator.initialize(situation)
@@ -83,13 +89,16 @@ if __name__ == '__main__':
             # next utterance
             user_utterance = user_simulator.get_next_user_utterance(result['system_utterance'])
 
-    if args.output:
-        with open(args.output, mode='w', encoding='utf-8') as fp:
+        for log_line in log_lines:
+           print(log_line)
+
+        if out_fp:
             for log_line in log_lines:
-                print(log_line, file=fp)
+                print(log_line, file=out_fp)
 
-    for log_line in log_lines:
-        print(log_line)
+        log_lines = []
 
+    if out_fp:
+        out_fp.close()
 
 
