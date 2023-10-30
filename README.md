@@ -53,14 +53,16 @@ OpenAI ChatGPTを用いたDialBBアプリケーションのテスタ
   以下のキーをもつYAML
   
   - `model`: OpenAIのGPTモデル名
+
+  - `user_name`: シミュレータのキャラクタ名
+
+  - `common_situation`: すべてのセッション共通のシチュエーション
+
+  - `situations`: セッション個別のシチュエーションのリスト
   
-  - `situations_file`: シチュエーションを列挙したファイルのパス（このコンフィギュレーションからの相対パス）
+  - `generation_instructions`: 次発話を生成するインストラクションのリスト
 
-
-- シチュエーションを列挙したファイル
-
-  シチュエーションを記述した文字列のリストを含むJSONファイル
-
+  - `temperatures`: GPTの温度パラメータのリスト
     
 
 

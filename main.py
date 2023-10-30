@@ -13,8 +13,7 @@ __copyright__ = 'C4A Research Institute, Inc.'
 import argparse
 from typing import Dict, Any, List
 import yaml
-import os
-import json
+import os, sys
 
 from dialbb.main import DialogueProcessor
 from chatgpt_tester_ja import ChatGPTTesterJa
@@ -39,9 +38,16 @@ if __name__ == '__main__':
     with open(test_config_file, encoding='utf-8') as fp:
         test_config: Dict[str, Any] = yaml.safe_load(fp)
 
-    situations_file = os.path.join(test_config_dir, test_config['situations_file'])
-    with open(situations_file, encoding='utf-8') as fp:
-        situations: List[str] = json.load(fp)
+    common_situation: str = test_config.get("common_situation", "")
+    situations: List[str] = test_config.get("situations")
+    if not situations:
+        print("no situations are defined in the config.")
+        sys.exit(1)
+    generation_instructions: List[str] = test_config.get("generation_instructions")
+    if not situations:
+        print("no generation instructions are defined in the config.")
+        sys.exit(1)
+    temperatures: List[float] = test_config.get("temperatures", [0.7])
 
     user_simulator = ChatGPTTesterJa(test_config, test_config_dir)
 
@@ -56,47 +62,58 @@ if __name__ == '__main__':
     else:
         out_fp = None
 
-    for situation in situations:
+    for each_situation in situations:
+        for generation_instruction in generation_instructions:
+            for temperature in temperatures:
 
-        user_simulator.initialize(situation)
-        num_turns = 0
+                situation: str = common_situation + each_situation
 
-        # first turn
-        log_lines.append("----init")
-        request = {"user_id": USER_ID}
-        print("request: " + str(request))
-        result = dialogue_processor.process(request, initial=True)
-        print("response: " + str(result))
-        print("SYS> " + result['system_utterance'])
-        log_lines.append("System: " + result['system_utterance'])
-        session_id = result['session_id']
-        user_utterance = user_simulator.get_next_user_utterance(result['system_utterance'])
+                user_simulator.set_parameters(situation, generation_instruction, temperature)
 
-        while True:
-            num_turns += 1
-            print("USR> " + user_utterance)
-            log_lines.append("User: " + user_utterance)
-            request = {"user_id": USER_ID, "session_id": session_id,
-                       "user_utterance": user_utterance}
-            print("request: " + str(request))
-            result = dialogue_processor.process(request, initial=False)
-            print("response: " + str(result))
-            print("SYS> " + result['system_utterance'])
-            log_lines.append("System: " + result['system_utterance'])
-            if result['final'] or num_turns >= max_turns:
-                break
+                num_turns: int = 0
 
-            # next utterance
-            user_utterance = user_simulator.get_next_user_utterance(result['system_utterance'])
+                # first turn
 
-        for log_line in log_lines:
-           print(log_line)
+                log_lines.append("----settings")
+                log_lines.append("model: " + user_simulator.get_gpt_model())
+                log_lines.append("situation: " + situation)
+                log_lines.append("generation instruction: " + generation_instruction)
+                log_lines.append("temperature: " + str(temperature))
+                log_lines.append("----init")
+                request = {"user_id": USER_ID}
+                print("request: " + str(request))
+                result = dialogue_processor.process(request, initial=True)
+                print("response: " + str(result))
+                print("SYS> " + result['system_utterance'])
+                log_lines.append("System: " + result['system_utterance'])
+                session_id = result['session_id']
+                user_utterance = user_simulator.get_next_user_utterance(result['system_utterance'])
 
-        if out_fp:
-            for log_line in log_lines:
-                print(log_line, file=out_fp)
+                while True:
+                    num_turns += 1
+                    print("USR> " + user_utterance)
+                    log_lines.append("User: " + user_utterance)
+                    request = {"user_id": USER_ID, "session_id": session_id,
+                               "user_utterance": user_utterance}
+                    print("request: " + str(request))
+                    result = dialogue_processor.process(request, initial=False)
+                    print("response: " + str(result))
+                    print("SYS> " + result['system_utterance'])
+                    log_lines.append("System: " + result['system_utterance'])
+                    if result['final'] or num_turns >= max_turns:
+                        break
 
-        log_lines = []
+                    # next utterance
+                    user_utterance = user_simulator.get_next_user_utterance(result['system_utterance'])
+
+                for log_line in log_lines:
+                    print(log_line)
+
+                if out_fp:
+                    for log_line in log_lines:
+                        print(log_line, file=out_fp)
+
+                log_lines = []
 
     if out_fp:
         out_fp.close()
