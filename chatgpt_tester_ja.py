@@ -48,6 +48,7 @@ class ChatGPTTesterJa():
 
         prompt = self._context + self._generation_instruction
 
+        response = None
         while True:
             try:
                 response = openai.ChatCompletion.create(
@@ -61,7 +62,10 @@ class ChatGPTTesterJa():
                 traceback.print_exc()
                 sys.exit(1)
             finally:
-                break
+                if not response:
+                    continue
+                else:
+                    break
 
         user_utterance = response.choices[0]['message']['content']
         user_utterance = user_utterance.replace(self._user_name, "").replace("「", "").replace("」", "")
