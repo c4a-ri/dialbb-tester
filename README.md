@@ -6,7 +6,7 @@ OpenAI ChatGPTを用いたDialBBアプリケーションのテスタ
 
 以下bashの例で説明します．
 
-- DialBBをインストールし，[SNIPS+ネットワークベース対話管理アプリケーション](https://c4a-ri.github.io/dialbb/document-ja/build/html/03_install.html#snips)が動作することを確認します．
+- DialBBをインストールします．
 
 - DialBBをインストールしたディレクトリを環境変数`DIALBB_HOME`に設定します．
 
@@ -26,7 +26,7 @@ OpenAI ChatGPTを用いたDialBBアプリケーションのテスタ
   pip install openai
   ```
 
-- 環境変数`OPENAI_KEY`にOpenAI APIのキーを設定します．
+- 環境変数`OPENAI_KEY`または`OPENAI_API_KEY`にOpenAI APIのキーを設定します．
 
   ```sh
   export OPENAI_KEY=<OPENAIのAPIキー>

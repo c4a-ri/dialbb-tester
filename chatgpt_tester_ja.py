@@ -11,10 +11,11 @@ class ChatGPTTesterJa():
 
     def __init__(self, test_config: Dict[str, Any], test_config_dir: str):
 
-        openai_key: str = os.environ.get('OPENAI_KEY', "")
+        openai_key: str = os.environ.get('OPENAI_KEY', os.environ.get('OPENAI_API_KEY', ""))
         if not openai_key:
             print("environment variable OPENAI_KEY is not defined.")
             sys.exit(1)
+        self._openai_client = openai.OpenAI(api_key=openai_key)
         openai.api_key = openai_key
         self._gpt_model: str = test_config.get("model", DEFAULT_GPT_MODEL)
         self._context: str = ""
@@ -49,27 +50,28 @@ class ChatGPTTesterJa():
         prompt = self._context + self._generation_instruction
 
         response = None
+
+
+        chat_completion = None
         while True:
             try:
-                response = openai.ChatCompletion.create(
+                chat_completion = self._openai_client.with_options(timeout=10).chat.completions.create(
                     model=self._gpt_model,
                     messages=[{"role": "user", "content": prompt}],
-                    request_timeout=60
-                )
-            except openai.error.Timeout:
+                    temperature=0.0,
+                    )
+            except openai.APITimeoutError:
                 continue
             except Exception as e:
                 traceback.print_exc()
                 sys.exit(1)
             finally:
-                if not response:
+                if not chat_completion:
                     continue
                 else:
                     break
-
-        user_utterance = response.choices[0]['message']['content']
+        user_utterance: str = chat_completion.choices[0].message.content
         user_utterance = user_utterance.replace(self._user_name, "").replace("「", "").replace("」", "")
-
         self._context += f"{self._user_name} 「{user_utterance}」"
 
         return user_utterance
