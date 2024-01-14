@@ -3,7 +3,10 @@ model: gpt-4
 user_name: アオイ
 common_situation: "アオイとAIが対話をしています。"
 situations:
-    - "アオイは味噌ラーメンが好きで札幌に行ったときは必ず味噌ラーメンを食べます。"
+    - situation: "アオイは味噌ラーメンが好きで札幌に行ったときは必ず味噌ラーメンを食べます。"
+      aux_data:
+        - feature1: True
+          feature2: abc
     - "アオイはあっさりしたラーメンが好きです。醤油味のラーメンが好きです。札幌には行ったことがありません。"
     - "アオイは豚骨ラーメンが好きです。博多には行ったことがありません。"
 generation_instructions:

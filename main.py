@@ -11,7 +11,7 @@ __copyright__ = 'C4A Research Institute, Inc.'
 
 
 import argparse
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Union
 import yaml
 import os, sys
 
@@ -39,7 +39,7 @@ if __name__ == '__main__':
         test_config: Dict[str, Any] = yaml.safe_load(fp)
 
     common_situation: str = test_config.get("common_situation", "")
-    situations: List[str] = test_config.get("situations")
+    situations: List[Union[str, Dict[str, Any]]] = test_config.get("situations")
     if not situations:
         print("no situations are defined in the config.")
         sys.exit(1)
@@ -66,7 +66,15 @@ if __name__ == '__main__':
         for generation_instruction in generation_instructions:
             for temperature in temperatures:
 
-                situation: str = common_situation + each_situation
+                initial_aux_data: Dict[str, Any] = {}  # aux data for the initial request
+
+                if type(each_situation) == dict:
+                    situation_for_session = each_situation.get("situation")
+                    initial_aux_data: Dict[str, Any] = each_situation.get("initial_aux_data", {})
+                else:
+                    situation_for_session = each_situation
+
+                situation: str = common_situation + situation_for_session
 
                 user_simulator.set_parameters(situation, generation_instruction, temperature)
 
@@ -80,7 +88,7 @@ if __name__ == '__main__':
                 log_lines.append("generation instruction: " + generation_instruction)
                 log_lines.append("temperature: " + str(temperature))
                 log_lines.append("----init")
-                request = {"user_id": USER_ID}
+                request = {"user_id": USER_ID, "aux_data": initial_aux_data}  # initial request
                 print("request: " + str(request))
                 result = dialogue_processor.process(request, initial=True)
                 print("response: " + str(result))

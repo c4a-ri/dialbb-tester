@@ -7,7 +7,8 @@ from typing import Dict, Any
 
 DEFAULT_GPT_MODEL: str = "gpt-3.5-turbo"
 
-class ChatGPTTesterJa():
+
+class ChatGPTTesterJa:
 
     def __init__(self, test_config: Dict[str, Any], test_config_dir: str):
 
@@ -49,10 +50,8 @@ class ChatGPTTesterJa():
 
         prompt = self._context + self._generation_instruction
 
-        response = None
-
-
         chat_completion = None
+
         while True:
             try:
                 chat_completion = self._openai_client.with_options(timeout=10).chat.completions.create(
@@ -64,7 +63,7 @@ class ChatGPTTesterJa():
                 continue
             except Exception as e:
                 traceback.print_exc()
-                sys.exit(1)
+                raise Exception
             finally:
                 if not chat_completion:
                     continue
