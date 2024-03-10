@@ -11,6 +11,8 @@ __copyright__ = 'C4A Research Institute, Inc.'
 
 
 import argparse
+import json
+import traceback
 from typing import Dict, Any, List, Union
 import yaml
 import os, sys
@@ -39,28 +41,38 @@ if __name__ == '__main__':
     with open(test_config_file, encoding='utf-8') as fp:
         test_config: Dict[str, Any] = yaml.safe_load(fp)
 
-    # read task description from file
-    task_description = ""
-    task_description_file: str = test_config.get("task_description")
-    if task_description_file:
-        file = os.path.join(test_config_dir, task_description_file)
-        with open(file, encoding='utf-8') as fp:
-            task_description = fp.read()
-            print(task_description)
+    # read settings
+    settings: List[Dict[str, Any]] = []
+    setting_descriptions: List[Dict[str, str]] = test_config.get("settings")
+    for setting_description in setting_descriptions:
+        task_description: str = ""
+        task_description_file: str = setting_description.get("task_description")
+        if task_description_file:
+            with open(os.path.join(test_config_dir, task_description_file), encoding='utf-8') as fp:
+                task_description = fp.read()
 
-    # read prompt templates
-    prompt_templates: List[str] = []
-    prompt_template_files: List[str] = test_config.get("prompt_templates")
-    if not prompt_template_files:
-        print("no prompt templates are defined in the config.")
-        sys.exit(1)
-    for prompt_template_file in prompt_template_files:
-        file = os.path.join(test_config_dir, prompt_template_file)
-        with open(file, encoding='utf-8') as fp:
-            template = fp.read()
+        prompt_template_file = setting_description.get("prompt_template")
+        if not prompt_template_file:
+            print("no prompt template file specified.")
+            sys.exit(1)
+        with open(os.path.join(test_config_dir, prompt_template_file), encoding='utf-8') as fp:
+            prompt_template = fp.read()
             if task_description:
-                template = template.replace(TASk_DESCRIPTION_TAG, task_description)
-            prompt_templates.append(template)
+                prompt_template = prompt_template.replace(TASk_DESCRIPTION_TAG, task_description)
+
+        initial_aux_data = {}
+        initial_aux_data_file: str = setting_description.get("initial_aux_data")
+        if initial_aux_data_file:
+            file: str = os.path.join(test_config_dir, initial_aux_data_file)
+            try:
+                with open(file, encoding='utf-8') as fp:
+                    initial_aux_data: Dict[str, any] = json.load(fp)
+            except Exception as e:
+                print(traceback.format_exc())
+                print("problem with reading json file: " + file)
+                sys.exit(1)
+
+        settings.append({"prompt_template": prompt_template, "initial_aux_data": initial_aux_data})
 
     # temperature list
     temperatures: List[float] = test_config.get("temperatures", [0.7])
@@ -71,18 +83,17 @@ if __name__ == '__main__':
 
     max_turns = test_config.get('max_turns', DEFAULT_MAX_TURNS)
 
-    # reads each user utterance from test input file and processes it
-
+    # setting output file
     if args.output:
         out_fp = open(args.output, mode='w', encoding='utf-8')
     else:
         out_fp = None
 
-    for prompt_template in prompt_templates:
+    for setting in settings:
         for temperature in temperatures:
 
-            initial_aux_data: Dict[str, Any] = {}  # aux data for the initial request
-
+            initial_aux_data: Dict[str, Any] = setting['initial_aux_data']
+            prompt_template: str = setting['prompt_template']
             user_simulator.set_parameters(prompt_template, temperature)
 
             num_turns: int = 0
@@ -91,12 +102,13 @@ if __name__ == '__main__':
 
             log_text += "----settings\n"
             log_text += f"model: {user_simulator.get_gpt_model()}\n"
-            log_text += "prompt_template: ---\n"
+            log_text += "prompt_template:\n---\n"
             log_text += prompt_template
             log_text += "---\n"
             log_text += f"temperature: {str(temperature)}\n"
             log_text += "----init\n"
             request = {"user_id": USER_ID, "aux_data": initial_aux_data}  # initial request
+            log_text += f"initial aux data: {str(initial_aux_data)}\n"
             result = dialogue_processor.process(request, initial=True)
             print("response: " + str(result))
             print("SYS> " + result['system_utterance'])
