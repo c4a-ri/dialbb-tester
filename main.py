@@ -16,10 +16,11 @@ import yaml
 import os, sys
 
 from dialbb.main import DialogueProcessor
-from chatgpt_tester_ja import ChatGPTTesterJa
+from chatgpt_tester import ChatGPTTester
 
 DEFAULT_MAX_TURNS = 15
 USER_ID = "user1"
+TASk_DESCRIPTION_TAG = '@task_description'
 
 if __name__ == '__main__':
 
@@ -38,20 +39,35 @@ if __name__ == '__main__':
     with open(test_config_file, encoding='utf-8') as fp:
         test_config: Dict[str, Any] = yaml.safe_load(fp)
 
-    common_situation: str = test_config.get("common_situation", "")
-    situations: List[Union[str, Dict[str, Any]]] = test_config.get("situations")
-    if not situations:
-        print("no situations are defined in the config.")
+    # read task description from file
+    task_description = ""
+    task_description_file: str = test_config.get("task_description")
+    if task_description_file:
+        file = os.path.join(test_config_dir, task_description_file)
+        with open(file, encoding='utf-8') as fp:
+            task_description = fp.read()
+            print(task_description)
+
+    # read prompt templates
+    prompt_templates: List[str] = []
+    prompt_template_files: List[str] = test_config.get("prompt_templates")
+    if not prompt_template_files:
+        print("no prompt templates are defined in the config.")
         sys.exit(1)
-    generation_instructions: List[str] = test_config.get("generation_instructions")
-    if not situations:
-        print("no generation instructions are defined in the config.")
-        sys.exit(1)
+    for prompt_template_file in prompt_template_files:
+        file = os.path.join(test_config_dir, prompt_template_file)
+        with open(file, encoding='utf-8') as fp:
+            template = fp.read()
+            if task_description:
+                template = template.replace(TASk_DESCRIPTION_TAG, task_description)
+            prompt_templates.append(template)
+
+    # temperature list
     temperatures: List[float] = test_config.get("temperatures", [0.7])
 
-    user_simulator = ChatGPTTesterJa(test_config, test_config_dir)
+    user_simulator = ChatGPTTester(test_config)
 
-    log_lines: List[str] = []
+    log_text: str = ""
 
     max_turns = test_config.get('max_turns', DEFAULT_MAX_TURNS)
 
@@ -62,66 +78,55 @@ if __name__ == '__main__':
     else:
         out_fp = None
 
-    for each_situation in situations:
-        for generation_instruction in generation_instructions:
-            for temperature in temperatures:
+    for prompt_template in prompt_templates:
+        for temperature in temperatures:
 
-                initial_aux_data: Dict[str, Any] = {}  # aux data for the initial request
+            initial_aux_data: Dict[str, Any] = {}  # aux data for the initial request
 
-                if type(each_situation) == dict:
-                    situation_for_session = each_situation.get("situation")
-                    initial_aux_data: Dict[str, Any] = each_situation.get("initial_aux_data", {})
-                else:
-                    situation_for_session = each_situation
+            user_simulator.set_parameters(prompt_template, temperature)
 
-                situation: str = common_situation + situation_for_session
+            num_turns: int = 0
 
-                user_simulator.set_parameters(situation, generation_instruction, temperature)
+            # first turn
 
-                num_turns: int = 0
+            log_text += "----settings\n"
+            log_text += f"model: {user_simulator.get_gpt_model()}\n"
+            log_text += "prompt_template: ---\n"
+            log_text += prompt_template
+            log_text += "---\n"
+            log_text += f"temperature: {str(temperature)}\n"
+            log_text += "----init\n"
+            request = {"user_id": USER_ID, "aux_data": initial_aux_data}  # initial request
+            result = dialogue_processor.process(request, initial=True)
+            print("response: " + str(result))
+            print("SYS> " + result['system_utterance'])
+            log_text += f"System: {result['system_utterance']}\n"
+            session_id = result['session_id']
+            user_utterance = user_simulator.generate_next_user_utterance(result['system_utterance'])
 
-                # first turn
-
-                log_lines.append("----settings")
-                log_lines.append("model: " + user_simulator.get_gpt_model())
-                log_lines.append("situation: " + situation)
-                log_lines.append("generation instruction: " + generation_instruction)
-                log_lines.append("temperature: " + str(temperature))
-                log_lines.append("----init")
-                request = {"user_id": USER_ID, "aux_data": initial_aux_data}  # initial request
+            while True:
+                num_turns += 1
+                print("USR> " + user_utterance)
+                log_text += f"User: {user_utterance}\n"
+                request = {"user_id": USER_ID, "session_id": session_id,
+                           "user_utterance": user_utterance}
                 print("request: " + str(request))
-                result = dialogue_processor.process(request, initial=True)
+                result = dialogue_processor.process(request, initial=False)
                 print("response: " + str(result))
                 print("SYS> " + result['system_utterance'])
-                log_lines.append("System: " + result['system_utterance'])
-                session_id = result['session_id']
-                user_utterance = user_simulator.get_next_user_utterance(result['system_utterance'])
+                log_text += f"System: {result['system_utterance']}\n"
+                if result['final'] or num_turns >= max_turns:
+                    break
 
-                while True:
-                    num_turns += 1
-                    print("USR> " + user_utterance)
-                    log_lines.append("User: " + user_utterance)
-                    request = {"user_id": USER_ID, "session_id": session_id,
-                               "user_utterance": user_utterance}
-                    print("request: " + str(request))
-                    result = dialogue_processor.process(request, initial=False)
-                    print("response: " + str(result))
-                    print("SYS> " + result['system_utterance'])
-                    log_lines.append("System: " + result['system_utterance'])
-                    if result['final'] or num_turns >= max_turns:
-                        break
+                # next utterance
+                user_utterance = user_simulator.generate_next_user_utterance(result['system_utterance'])
 
-                    # next utterance
-                    user_utterance = user_simulator.get_next_user_utterance(result['system_utterance'])
+            print(log_text)
 
-                for log_line in log_lines:
-                    print(log_line)
+            if out_fp:
+                print(log_text, file=out_fp)
 
-                if out_fp:
-                    for log_line in log_lines:
-                        print(log_line, file=out_fp)
-
-                log_lines = []
+            log_text = ""
 
     if out_fp:
         out_fp.close()
