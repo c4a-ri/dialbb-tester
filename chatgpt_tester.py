@@ -9,11 +9,13 @@ DEFAULT_GPT_MODEL: str = "gpt-3.5-turbo"
 DIALOG_HISTORY_TAG: str = '@dialogue_history'
 TIMEOUT: int = 10
 
-
 class ChatGPTTester:
 
     def __init__(self, test_config: Dict[str, Any]):
 
+        self._debug = False
+        if os.environ.get('DIALBB_TESTER_DEBUG', 'no').lower() == "yes":
+            self._debug = True
         openai_key: str = os.environ.get('OPENAI_KEY', os.environ.get('OPENAI_API_KEY', ""))
         if not openai_key:
             print("environment variable OPENAI_KEY or OPENAI_API_KEY is not defined.")
@@ -27,7 +29,7 @@ class ChatGPTTester:
         self._system_name_string: str = test_config.get("system_name", "System")
         self._dialogue_history = ""
 
-    def set_parameters(self, prompt_template: str, temperature: float) -> None:
+    def set_parameters_and_clear_history(self, prompt_template: str, temperature: float) -> None:
         """
         setting simulator parameters
         :param prompt_template: template of prompt to be used in calling ChatGPT
@@ -37,6 +39,7 @@ class ChatGPTTester:
 
         self._prompt_template = prompt_template
         self._temperature = temperature
+        self._dialogue_history = ""
 
     def generate_next_user_utterance(self, system_utterance: str) -> str:
         """
@@ -50,6 +53,9 @@ class ChatGPTTester:
         prompt = self._prompt_template.replace(DIALOG_HISTORY_TAG, self._dialogue_history)
 
         chat_completion = None
+
+        if self._debug:
+            print("prompt for generating user utterance: " + prompt)
 
         while True:
             try:

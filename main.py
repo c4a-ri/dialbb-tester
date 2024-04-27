@@ -94,7 +94,7 @@ if __name__ == '__main__':
 
             initial_aux_data: Dict[str, Any] = setting['initial_aux_data']
             prompt_template: str = setting['prompt_template']
-            user_simulator.set_parameters(prompt_template, temperature)
+            user_simulator.set_parameters_and_clear_history(prompt_template, temperature)
 
             num_turns: int = 0
 

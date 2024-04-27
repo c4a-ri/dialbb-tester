@@ -35,7 +35,7 @@ OpenAI ChatGPTを用いたDialBBアプリケーションのテスタ
 - このREADMEのあるディレクトリで以下のコマンドを実行します．
 
   ```sh
-  python main.py --app_config $DIALBB_HOME/sample_apps/network_ja/config.yml --test_config sample_ja/config.yml --output _output.txt
+  python main.py --app_config $DIALBB_HOME/sample_apps/chatgpt/config_ja.yml --test_config sample_ja/config.yml --output _output.txt
   ```
   
 - `_output.txt`に結果が記述されます．
