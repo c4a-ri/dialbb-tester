@@ -1,6 +1,6 @@
-# dialbb-tester
+# OpenAI ChatGPTを用いたDialBBアプリケーションのテスタ
 
-OpenAI ChatGPTを用いたDialBBアプリケーションのテスタ
+for DialBB ver. 1.0
 
 ## サンプルの動かし方
 
