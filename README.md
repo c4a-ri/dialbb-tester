@@ -6,24 +6,13 @@ OpenAI ChatGPTを用いたDialBBアプリケーションのテスタ
 
 以下bashの例で説明します．
 
-- DialBBをインストールします．
+- DialBBのREADMEに従いDialBBインストールします．
 
-- DialBBをインストールしたディレクトリを環境変数`DIALBB_HOME`に設定します．
-
-  ```sh
-  export DIALBB_HOME=<DIALBBのインストールディレクトリ>
-  ```
-
-- 環境変数`PYTHONPATH`にDialBBのインストールディレクトリを設定します．
-  
-  ```sh
-  export PYTHONPATH=$DIALBB_HOME:$PYTHONPATH
-  ```
-
-- Open AIのライブラリをインストールします．
+- DialBBのサンプルアプリケーションもダウンロードして展開します。展開してできたディレクトリを環境変数
+`SAMPLE_APPS`にセットします。
 
   ```sh
-  pip install openai
+  export SAMPLE_APPS=<サンプルアプリケーションを展開してできたディレクトリ>
   ```
 
 - 環境変数`OPENAI_KEY`または`OPENAI_API_KEY`にOpenAI APIのキーを設定します．
@@ -35,7 +24,7 @@ OpenAI ChatGPTを用いたDialBBアプリケーションのテスタ
 - このREADMEのあるディレクトリで以下のコマンドを実行します．
 
   ```sh
-  python main.py --app_config $DIALBB_HOME/sample_apps/chatgpt/config_ja.yml --test_config sample_ja/config.yml --output _output.txt
+  python main.py --app_config $SAMPLE_APPS/chatgpt/config_ja.yml --test_config sample_ja/config.yml --output _output.txt
   ```
   
 - `_output.txt`に結果が記述されます．

@@ -62,7 +62,7 @@ class ChatGPTTester:
                 chat_completion = self._openai_client.with_options(timeout=TIMEOUT).chat.completions.create(
                     model=self._gpt_model,
                     messages=[{"role": "user", "content": prompt}],
-                    temperature=0.0,
+                    temperature=self._temperature,
                     )
             except openai.APITimeoutError:
                 continue
